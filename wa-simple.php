@@ -4,8 +4,12 @@
  * Description: Simple WhatsApp message queue manager - Easy integration with any plugin
  * Version: 1.0.0
  * Author: Abdulrahman Roston
- * Author URI: https://abdulrahmanroston.com
+ * Author URI: https://github.com/abdulrahmanroston
+ * Plugin URI: https://github.com/abdulrahmanroston/wa-simple_plugin
  * Requires PHP: 7.4
+ * Requires at least: 5.8
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 if (!defined('ABSPATH')) exit;
@@ -13,6 +17,29 @@ if (!defined('ABSPATH')) exit;
 define('WA_VERSION', '1.0.0');
 define('WA_PATH', plugin_dir_path(__FILE__));
 define('WA_URL', plugin_dir_url(__FILE__));
+
+/**
+ * Setup automatic updates from GitHub
+ * Note: Requires plugin-update-checker library to be installed
+ * Download from: https://github.com/YahnisElsts/plugin-update-checker
+ */
+if (file_exists(WA_PATH . 'includes/plugin-update-checker/plugin-update-checker.php')) {
+    require WA_PATH . 'includes/plugin-update-checker/plugin-update-checker.php';
+    
+    use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+    
+    $waUpdateChecker = PucFactory::buildUpdateChecker(
+        'https://github.com/abdulrahmanroston/wa-simple_plugin/',
+        __FILE__,
+        'wa-simple'
+    );
+    
+    // Set the branch that contains stable releases
+    $waUpdateChecker->setBranch('main');
+    
+    // Enable release assets for proper ZIP downloads
+    $waUpdateChecker->getVcsApi()->enableReleaseAssets();
+}
 
 /**
  * Main Class
@@ -47,14 +74,10 @@ class WA_Simple {
         register_activation_hook(__FILE__, array('WA_Queue', 'activate'));
         add_action('plugins_loaded', array($this, 'init'));
     }
-    // داخل WA_Simple::init_hooks()
-
-
     
     public function init() {
         WA_Queue::instance();
         WA_Sender::instance();
-        // New: Order invoices
         WA_Order_Invoices::instance();
 
         if (is_admin()) {
