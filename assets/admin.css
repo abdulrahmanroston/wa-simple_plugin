@@ -1,0 +1,40 @@
+.wa-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.wa-stat {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #2271b1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.wa-stat.pending { border-left-color: #f0ad4e; }
+.wa-stat.sent { border-left-color: #27ae60; }
+.wa-stat.failed { border-left-color: #e74c3c; }
+
+.wa-stat h3 {
+    margin: 0 0 5px 0;
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.wa-stat p {
+    margin: 0;
+    color: #7e8993;
+}
+
+.status-pending { color: #f0ad4e; font-weight: 600; }
+.status-sent { color: #27ae60; font-weight: 600; }
+.status-failed { color: #e74c3c; font-weight: 600; }
+
+.wa-actions { display: flex; gap: 10px; }
+
+
+.cleanup-option {
+    font-size: 13px !important ;
+}
