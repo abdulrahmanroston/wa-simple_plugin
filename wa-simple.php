@@ -20,11 +20,9 @@ define('WA_URL', plugin_dir_url(__FILE__));
 
 /**
  * Setup automatic updates from GitHub
- * Note: Requires plugin-update-checker library to be installed
- * Download from: https://github.com/YahnisElsts/plugin-update-checker
  */
-if (file_exists(WA_PATH . 'includes/plugin-update-checker/plugin-update-checker.php')) {
-    require WA_PATH . 'includes/plugin-update-checker/plugin-update-checker.php';
+if (file_exists(WA_PATH . 'includes/plugin-update-checker-master/plugin-update-checker.php')) {
+    require WA_PATH . 'includes/plugin-update-checker-master/plugin-update-checker.php';
     
     use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
     
