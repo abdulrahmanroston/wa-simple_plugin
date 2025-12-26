@@ -1,0 +1,76 @@
+name: Create Release on Version Change
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wa-simple.php'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      version-changed: ${{ steps.check-version.outputs.changed }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Get current version
+        id: get-version
+        run: |
+          VERSION=$(grep -oP "Version:\s*\K[0-9.]+" wa-simple.php | head -1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Check if version changed
+        id: check-version
+        run: |
+          git diff HEAD^ HEAD -- wa-simple.php > version_diff.txt
+          if grep -q "Version:" version_diff.txt; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Version has changed!"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Version has not changed"
+          fi
+
+  create-release:
+    needs: check-version
+    if: needs.check-version.outputs.version-changed == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create plugin ZIP
+        run: |
+          mkdir -p wa-simple
+          rsync -av --exclude='.git' --exclude='.github' --exclude='wa-simple' . wa-simple/
+          zip -r wa-simple.zip wa-simple/
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: Release v${{ needs.check-version.outputs.version }}
+          body: |
+            ## WA Simple Queue v${{ needs.check-version.outputs.version }}
+            
+            ### Installation
+            1. Download `wa-simple.zip`
+            2. Go to WordPress Admin → Plugins → Add New → Upload Plugin
+            3. Upload the ZIP file and activate
+            
+            ### Changelog
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+          files: wa-simple.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
