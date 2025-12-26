@@ -1,4 +1,4 @@
-name: Create Release on Version Change
+name: Create Plugin Release
 
 on:
   push:
@@ -8,69 +8,78 @@ on:
       - 'wa-simple.php'
 
 jobs:
-  check-version:
+  release:
+    name: Create Release & Build ZIP
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get-version.outputs.version }}
-      version-changed: ${{ steps.check-version.outputs.changed }}
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 2
+        uses: actions/checkout@v4
 
-      - name: Get current version
-        id: get-version
+      - name: Extract version from wa-simple.php
+        id: get_version
         run: |
-          VERSION=$(grep -oP "Version:\s*\K[0-9.]+" wa-simple.php | head -1)
+          VERSION=$(grep -oP "Version:\s*\K[0-9.]+" wa-simple.php)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $VERSION"
+          echo "Detected version: $VERSION"
 
-      - name: Check if version changed
-        id: check-version
+      - name: Check if tag exists
+        id: check_tag
         run: |
-          git diff HEAD^ HEAD -- wa-simple.php > version_diff.txt
-          if grep -q "Version:" version_diff.txt; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "Version has changed!"
+          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "Version has not changed"
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-  create-release:
-    needs: check-version
-    if: needs.check-version.outputs.version-changed == 'true'
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Create plugin ZIP
+      - name: Create Release Tag
+        if: steps.check_tag.outputs.exists == 'false'
         run: |
-          mkdir -p wa-simple
-          rsync -av --exclude='.git' --exclude='.github' --exclude='wa-simple' . wa-simple/
-          zip -r wa-simple.zip wa-simple/
-          
-      - name: Create Release
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "v${{ steps.get_version.outputs.version }}" -m "Release version ${{ steps.get_version.outputs.version }}"
+          git push origin "v${{ steps.get_version.outputs.version }}"
+
+      - name: Build plugin ZIP
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          mkdir -p build
+          rsync -av --exclude='.git' \
+                    --exclude='.github' \
+                    --exclude='build' \
+                    --exclude='node_modules' \
+                    --exclude='.gitignore' \
+                    --exclude='.env' \
+                    . build/wa-simple/
+          cd build
+          zip -r wa-simple-v${{ steps.get_version.outputs.version }}.zip wa-simple/
+
+      - name: Create GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ needs.check-version.outputs.version }}
-          name: Release v${{ needs.check-version.outputs.version }}
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: WA Simple Queue v${{ steps.get_version.outputs.version }}
           body: |
-            ## WA Simple Queue v${{ needs.check-version.outputs.version }}
+            ## What's Changed
+            Check [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
             
-            ### Installation
-            1. Download `wa-simple.zip`
+            ## Installation
+            1. Download `wa-simple-v${{ steps.get_version.outputs.version }}.zip`
             2. Go to WordPress Admin → Plugins → Add New → Upload Plugin
             3. Upload the ZIP file and activate
             
-            ### Changelog
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-          files: wa-simple.zip
+            ## Requirements
+            - WordPress 5.8+
+            - PHP 7.4+
+          files: |
+            build/wa-simple-v${{ steps.get_version.outputs.version }}.zip
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip - Tag already exists
+        if: steps.check_tag.outputs.exists == 'true'
+        run: |
+          echo "Tag v${{ steps.get_version.outputs.version }} already exists. Skipping release."
